@@ -9,4 +9,7 @@ env/
 dist/
 build/
 .mypy_cache/
+
+# Dataset UCI terlalu besar (127MB > GitHub 100MB limit)
+# Hanya dibutuhkan lokal untuk menjalankan generate_sample_data.py
 models/household_power_consumption.txt

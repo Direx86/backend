@@ -38,21 +38,25 @@ class EnergyPredictor:
         try:
             logger.info("Loading Random Forest model...")
             self.rf_model = joblib.load(self.config.RF_MODEL_PATH)
-            logger.info("RF model loaded.")
+            logger.info("RF model loaded successfully.")
         except Exception as e:
             logger.error(f"Failed to load RF model: {e}")
 
         try:
             logger.info("Loading Gradient Boosting model...")
+            logger.info(f"GB model path: {self.config.GB_MODEL_PATH}")
+            logger.info(f"GB model file exists: {self.config.GB_MODEL_PATH.exists()}")
+            if self.config.GB_MODEL_PATH.exists():
+                logger.info(f"GB model file size: {self.config.GB_MODEL_PATH.stat().st_size} bytes")
             self.gb_model = joblib.load(self.config.GB_MODEL_PATH)
-            logger.info("GB model loaded.")
+            logger.info("GB model loaded successfully.")
         except Exception as e:
-            logger.error(f"Failed to load GB model: {e}")
+            logger.error(f"Failed to load GB model: {e}", exc_info=True)
 
         try:
             logger.info("Loading LSTM model...")
             self.lstm_model = _load_keras_model(self.config.LSTM_MODEL_PATH)
-            logger.info("LSTM model loaded.")
+            logger.info("LSTM model loaded successfully.")
         except Exception as e:
             logger.error(f"Failed to load LSTM model: {e}")
 
@@ -71,7 +75,7 @@ class EnergyPredictor:
         for lag in [1, 2, 3, 6, 12, 24]:
             df[f"{target}_lag{lag}"] = df[target].shift(lag)
 
-        # Rolling features
+        # Rolling features (interleaved: rollmean then rollstd per window)
         for w in [3, 6, 12, 24]:
             df[f"{target}_rollmean{w}"] = df[target].rolling(w).mean()
             df[f"{target}_rollstd{w}"] = df[target].rolling(w).std()
@@ -88,11 +92,7 @@ class EnergyPredictor:
         return values * self.config.SCALER_STD + self.config.SCALER_MEAN
 
     def predict(self, readings: list[dict]) -> dict:
-        """
-        Run prediction using all 3 models.
-        readings: list of dicts with sensor values (at least 24 entries).
-        Returns dict with predictions from each model.
-        """
+        """Run prediction using all 3 models."""
         results = {}
 
         # --- Tree models ---
@@ -125,15 +125,12 @@ class EnergyPredictor:
         return results
 
     def predict_batch(self, readings: list[dict], n_predictions: int = 1) -> list[dict]:
-        """
-        Run predictions on a sliding window of readings.
-        Returns list of prediction dicts for each valid timestep.
-        """
+        """Run predictions on a sliding window of readings."""
         all_predictions = []
-        min_required = max(24, self.config.LSTM_WINDOW)  # need 24 for lag24
+        min_required = max(24, self.config.LSTM_WINDOW)
 
         for i in range(min_required, len(readings)):
-            window_readings = readings[max(0, i - 48):i + 1]  # generous window
+            window_readings = readings[max(0, i - 48):i + 1]
             preds = self.predict(window_readings)
             if preds:
                 entry = {"index": i}
@@ -204,7 +201,7 @@ class EnergyPredictor:
             "type": "Deep Learning (RNN)",
             "description": "Long Short-Term Memory, arsitektur Recurrent Neural Network yang mampu mempelajari pola temporal jangka panjang. Menggunakan window 24 jam untuk memprediksi 1 jam ke depan.",
             "parameters": {
-                "layers": "LSTM(64) → Dropout(0.2) → LSTM(32) → Dense(16) → Dense(1)",
+                "layers": "LSTM(64) -> Dropout(0.2) -> LSTM(32) -> Dense(16) -> Dense(1)",
                 "optimizer": "Adam (lr=0.001)",
                 "window_size": 24,
                 "loss": "MSE",

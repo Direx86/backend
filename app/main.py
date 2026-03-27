@@ -28,7 +28,7 @@ predictor = EnergyPredictor(config)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Load models on startup."""
-    logger.info("Starting up — loading models...")
+    logger.info("Starting up - loading models...")
     predictor.load_models()
     yield
     logger.info("Shutting down.")
@@ -44,7 +44,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS
+# CORS - allow frontend origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -59,7 +59,7 @@ app.add_middleware(
 )
 
 
-# ─── Health ───────────────────────────────────────────────
+# --- Health ---
 @app.get("/api/health")
 def health_check():
     return {
@@ -71,7 +71,7 @@ def health_check():
     }
 
 
-# ─── Metrics ──────────────────────────────────────────────
+# --- Metrics ---
 @app.get("/api/metrics", response_model=MetricsResponse)
 def get_metrics():
     rows = predictor.get_metrics()
@@ -80,14 +80,14 @@ def get_metrics():
     return MetricsResponse(metrics=[MetricRow(**r) for r in rows])
 
 
-# ─── Model Info ───────────────────────────────────────────
+# --- Model Info ---
 @app.get("/api/models/info", response_model=ModelsInfoResponse)
 def get_models_info():
     infos = predictor.get_models_info()
     return ModelsInfoResponse(models=[ModelInfo(**i) for i in infos])
 
 
-# ─── Predict ──────────────────────────────────────────────
+# --- Predict ---
 @app.post("/api/predict", response_model=PredictionResponse)
 def predict(req: PredictionRequest):
     if len(req.readings) < 25:
@@ -110,7 +110,7 @@ def predict(req: PredictionRequest):
     return PredictionResponse(predictions=preds, input_hours=len(req.readings))
 
 
-# ─── Sample Data (Demo - 168 jam / 7 hari) ───────────────
+# --- Sample Data (Demo - 168 jam / 7 hari) ---
 @app.get("/api/sample-data", response_model=SampleDataResponse)
 def get_sample_data():
     data = predictor.get_sample_data()
@@ -123,7 +123,7 @@ def get_sample_data():
     )
 
 
-# ─── Full Test Data (5121 data points) ───────────────────
+# --- Full Test Data (5121 data points) ---
 @app.get("/api/full-test-data")
 def get_full_test_data(
     last_n: Optional[int] = Query(None, description="Ambil N data terakhir saja"),
@@ -143,7 +143,7 @@ def get_full_test_data(
     }
 
 
-# ─── Dataset Info ─────────────────────────────────────────
+# --- Dataset Info ---
 @app.get("/api/dataset-info")
 def get_dataset_info():
     return {
